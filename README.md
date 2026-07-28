@@ -24,33 +24,39 @@ The backend service powering Tonotri, an AI-powered travel and social platform t
 
 Clone the repository:
 
->>bash
+```bash
 git clone https://github.com/your-username/Tonotri-Backend.git
 cd Tonotri-Backend
+```
 
 Create a virtual environment:
 
->>bash
+```bash
 python -m venv .venv
-
+```
 Activate it:
 
-Windows -> 
->>bash
+Windows: 
+```bash
 .venv\Scripts\activate
+```
 
 Linux/macOS:
->>bash
+```bash
 source .venv/bin/activate
+```
 
 Install dependencies:
->>bash
+```bash
 pip install -r requirements.txt
+```
 
 Apply migrations:
->>bash
+```bash
 python manage.py migrate
+```
 
 Run the development server:
->>bash
+```bash
 python manage.py runserver
+```
