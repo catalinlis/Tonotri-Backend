@@ -403,3 +403,145 @@ class CitySchema:
                 'travel_tips'
             ]
         }
+
+class LandmarkSchema:
+    @staticmethod
+    def get():
+        return {
+            'type': 'object',
+            'additionalProperties': False,
+            'properties': {
+                'official_name': { 'type': 'string' },
+                'summary': { 'type': 'string' },
+                'famous_for': {
+                    'type': 'array',
+                    'items': { 'type': 'string' },
+                    'minItems': 3,
+                    'maxItems': 5
+                },
+                'history': {
+                    'type': 'object',
+                    'properties': {
+                        'construction_period': { 'type': 'string' },
+                        'built_by': { 'type': 'string' },
+                        'original_purpose': { 'type': 'string' },
+                        'historical_events': {
+                            'type': 'array',
+                            'minItems': 3,
+                            'maxItems': 3,
+                            'items': {
+                                'type': 'object',
+                                'properties': {
+                                    'year': { 'type': 'string' },
+                                    'event': { 'type': 'string' }
+                                },
+                                'required': [
+                                    'year',
+                                    'event'
+                                ],
+                                'additionalProperties': False
+                            }
+                        }
+                    },
+                    'required': [ 
+                        'construction_period', 
+                        'built_by',
+                        'original_purpose',
+                        'historical_events'  
+                    ],
+                    'additionalProperties': False
+                },
+                'architecture': {
+                    'type': 'object',
+                    'properties': {
+                        'style': { 'type': 'string' },
+                        'materials': { 
+                            'type': 'array',
+                            'items': { 'type': 'string' },
+                            'minItems': 2,
+                            'maxItems': 6
+                        },
+                        'notable_features': {
+                            'type': 'array',
+                            'items': { 'type': 'string' },
+                            'minItems': 2,
+                            'maxItems': 5
+                        }
+                    },
+                    'required': [
+                        'style',
+                        'materials',
+                        'notable_features'
+                    ],
+                    'additionalProperties': False
+                },
+                'cultural_importance': { 'type': 'string' },
+                'interesting_facts': {
+                    'type': 'array',
+                    'items': { 'type': 'string' },
+                    'minItems': 2,
+                    'maxItems': 4
+                },
+                'must_see': {
+                    'type': 'array',
+                    'minItems': 2,
+                    'maxItems': 5,
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'name': { 'type': 'string' },
+                            'description': { 'type': 'string' }
+                        },
+                        'required': [
+                            'name',
+                            'description'
+                        ],
+                        'additionalProperties': False
+                    }
+                },
+                'best_time_to_visit': { 'type': 'string' },
+                'practical_information': {
+                    'type': 'object',
+                    'properties': {
+                        'opening_hours': { 'type': 'string' },
+                        'ticket_information': { 'type': 'string' },
+                        'accessibility': { 'type' : 'string' },
+                        'visitor_tips': {
+                            'type': 'array',
+                            'items': { 'type': 'string' },
+                            'minItems': 2,
+                            'maxItems': 4
+                        },
+                    },
+                    'required': [
+                            'opening_hours',
+                            'ticket_information',
+                            'accessibility',
+                            'visitor_tips'
+                    ],
+                    'additionalProperties': False
+                },
+                'look_around_now': {
+                    'type': 'array',
+                    'description': 'Specific details a tourist should observe while standing in front of the landmark.',
+                    'items': {
+                        'type': 'string'
+                    },
+                    'minItems': 2,
+                    'maxItems': 5
+                },
+            },
+            'required': [
+                'official_name',
+                'summary',
+                'famous_for',
+                'history',
+                'architecture',
+                'cultural_importance',
+                'interesting_facts',
+                'must_see',
+                'look_around_now',
+                'best_time_to_visit',
+                'practical_information',
+            ]
+        }

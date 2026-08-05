@@ -5,6 +5,7 @@ from accounts.permissions import IsActiveUser
 from django.shortcuts import render
 from django.conf import settings
 from .services.explore_service import CountryDescriptionService, CityDescriptionService
+from .services.explore_service import LandmarkVariationsService, LandmarkDescriptionService
 from .clients.geocities_client import GeoDbCitiesClient
 from .models import Country
 import requests
@@ -73,7 +74,7 @@ class CountryDescriptionAI(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        country = request.GET.get('country')
+        country = request.GET.get('country', '')
 
         country_obj = Country.objects.filter(country_name__iexact=country).first()
 
@@ -86,8 +87,14 @@ class CountryDescriptionAI(APIView):
         service = CountryDescriptionService()
         result = service.generate(country)
 
+        if result['success'] == False:
+            return Response(
+                result['message'],
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         return Response(
-            result,
+            result['message'],
             status=status.HTTP_200_OK
         )
 
@@ -95,8 +102,8 @@ class CountryCities(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        country = request.GET.get('country')
-        cities = request.GET.get('search')
+        country = request.GET.get('country', '')
+        cities = request.GET.get('search', '')
 
         client = GeoDbCitiesClient(settings.RAPID_API_KEY)
 
@@ -135,9 +142,9 @@ class CityDescriptionAI(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        country = request.GET.get('country')
-        city = request.GET.get('city')
-        population = request.GET.get('population')
+        country = request.GET.get('country', '')
+        city = request.GET.get('city', '')
+        population = int(request.GET.get('population', '0'))
 
         country_obj = Country.objects.filter(country_name__iexact=country).first()
 
@@ -160,3 +167,60 @@ class CityDescriptionAI(APIView):
             result['message'],
             status=status.HTTP_200_OK
         )
+
+class LandmarkVariationsAI(APIView):
+    permission_classes = [IsActiveUser]
+
+    def get(self, request):
+        
+        landmark = request.GET.get('landmark', '')
+
+        if not landmark:
+            return Response(
+                {'error': 'Provide a landmark'},
+                status = status.HTTP_400_BAD_REQUEST
+            )
+
+        service = LandmarkVariationsService()
+        result = service.generate(landmark)
+
+        if result['success'] == False:
+            return Response(
+                result['message'],
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            result['message'],
+            status=status.HTTP_200_OK
+        )
+
+class LandmarkDescriptionAI(APIView):
+    permission_classes = [IsActiveUser]
+
+    def get(self, request):
+        
+        landmark = request.GET.get('landmark', '')
+        city = request.GET.get('city', '')
+        country = request.GET.get('country', '')
+
+        if not (landmark and city and country):
+            return Response(
+                {'error': 'Provide a landmark'},
+                status = status.HTTP_400_BAD_REQUEST
+            )
+
+        service = LandmarkDescriptionService()
+        result = service.generate(landmark, city, country)
+
+        if result['success'] == False:
+            return Response(
+                result['message'],
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            result['message'],
+            status=status.HTTP_200_OK
+        )
+        

@@ -2,7 +2,7 @@ from openai import OpenAI
 from django.conf import settings
 from .base_service import BaseDescriptionAI
 from explore.clients.openai_client import OpenAIClient
-from .schemas import CountrySchema, BigCitySchema, CitySchema
+from .schemas import CountrySchema, BigCitySchema, CitySchema, LandmarkSchema
 import json
 
 class CountryDescriptionService(BaseDescriptionAI):
@@ -11,15 +11,28 @@ class CountryDescriptionService(BaseDescriptionAI):
         self.client = client or OpenAIClient()
 
     def generate(self, country: str):
-        prompt = self._build_prompt(country)
+        try:
+            prompt = self._build_prompt(country)
 
-        raw = self.client.generate_json(
-            model = 'gpt-5-mini',
-            prompt = prompt,
-            schema = CountrySchema.get()
-        )
+            raw = self.client.generate_json(
+                model = 'gpt-5-mini',
+                prompt = prompt,
+                schema = CountrySchema.get()
+            )
+        
+            message = self._parse(raw)
 
-        return self._parse(raw)
+            return {
+                'success': True,
+                'message': message
+            }
+
+        except Exception as e:
+            print(e)
+            return {
+                "success": False,
+                "message": f"Request for {country} failed."
+            }
 
     def _build_prompt(self, country: str) -> str:
         return f"""
@@ -191,3 +204,128 @@ class CityDescriptionService(BaseDescriptionAI):
             return BigCitySchema.get()
         else:
             return CitySchema.get()
+
+class LandmarkVariationsService(BaseDescriptionAI):
+    
+    def __init__(self, client: OpenAIClient | None = None):
+        self.client = client or OpenAIClient()
+
+    def generate(self, landmark: str):
+        try: 
+            prompt = self._build_prompt(landmark)
+
+            raw = self.client.generate_json(
+                model = 'gpt-5-mini',
+                prompt = prompt,
+                schema = self._get_schema()
+            )
+
+            message = self._parse(raw)
+
+            return {
+                "success": True,
+                "message": message
+            }
+
+        except Exception as e:
+            print(e)
+            return {
+                "success": False,
+                "message": f"Request for {landmark} failed."
+            }
+
+    def _parse(self, raw: str):
+        return json.loads(raw)
+
+    def _build_prompt(self, landmark: str) -> str:
+        return f"""
+            You are a landmark identification assistant.
+            The field official_name MUST refer to {landmark}. Please provide the official name landmark.
+            The city and country MUST correspond to the requested landmark.
+            If you are not certain which landmark the user means, return nothing instead of guessing.
+            Don't use ';', use ','
+
+            Include:
+            - official name
+            - city
+            - country
+        """
+
+    def _get_schema(self):
+        return {
+            'type': 'object',
+            'additionalProperties': False,
+            'properties': {
+                "official_name": { "type": "string" },
+                "city": { "type": "string" },
+                "country": { "type": "string" }
+            },
+            "required": [
+                "official_name",
+                "city",
+                "country"
+            ]
+        }
+
+class LandmarkDescriptionService(BaseDescriptionAI):
+
+    def __init__(self, client: OpenAIClient | None = None):
+        self.client = client or OpenAIClient()
+
+    def generate(self, landmark: str, city: str, country: str):
+        try: 
+            prompt = self._build_prompt(landmark, city, country)
+
+            raw = self.client.generate_json(
+                model = 'gpt-5-mini',
+                prompt = prompt,
+                schema = LandmarkSchema.get()
+            )
+
+            message = self._parse(raw)
+
+            return {
+                "success": True,
+                "message": message
+            }
+
+        except Exception as e:
+            print(e)
+            return {
+                "success": False,
+                "message": f"Request for {landmark} failed."
+            }
+
+    def _parse(self, raw: str):
+        return json.loads(raw)
+
+    def _build_prompt(self, landmark: str, city: str, country: str) -> str:
+        return f"""
+            You are an expert travel guide and historian. Generate a detailed but concise tourist guide for the given landmark {landmark}, {city}, {country}.
+
+            Your audience is a tourist who is currently visiting the landmark. Provide engaging, accurate, and easy-to-understand information that explains the history, architecture, cultural importance, and what visitors should notice.
+
+            Rules:
+            - Follow the JSON schema exactly.
+            - Do not invent facts. If information is unknown, return nothing.
+            - Avoid repeating information between fields.
+            - Use clear English suitable for travelers.
+            - Keep descriptions informative but concise.
+            - Don't use ';', use ','
+
+            Content requirements:
+
+            summary: Give a short introduction of 7 sentences explaining what the landmark is and why it matters.
+            famous_for: Provide 3-5 main reasons it is famous.
+            history: Include construction period, creator/builder, original purpose, and exactly 3 important historical events.
+            - event: Describe the event in 2 sentences.
+            architecture: Describe style, materials, and visible unique features.
+            cultural_importance: Explain its meaning and significance.
+            interesting_facts: Provide 2-4 memorable facts.
+            must_see: Provide 2-5 things visitors should look for with explanations.
+            best_time_to_visit: Recommend the best visiting time.
+            practical_information: Include useful visitor information, tickets, accessibility, and tips.
+            look_around_now: Describe details a tourist can observe while standing in front of the landmark.
+
+            Write like a professional local guide, not like an encyclopedia.
+        """
