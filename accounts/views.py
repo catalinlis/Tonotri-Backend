@@ -12,6 +12,7 @@ from .mixins import AuthCookieMixin
 from .tasks import send_email_task
 from users.models import User
 from accounts.utils.redis_utils import VerificationEmail
+from django.contrib.auth import authenticate
 import uuid
 import secrets
 import sys
@@ -45,6 +46,31 @@ class CustomRegisterView(AuthCookieMixin, RegisterView):
 class CustomLoginView(AuthCookieMixin, LoginView):
 
     def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        user = authenticate(
+            request=request,
+            username=username,
+            password=password
+        )
+        
+        if user and user.regular_user and not user.confirmed_email:
+          return Response(
+            {
+              'error': 'Email is not confirmed.',
+              'guid': str(user.guid)
+            },
+            status=status.HTTP_403_FORBIDDEN,
+          )
+        elif user == None:
+          return Response(
+            {
+              'error': 'Wrong password or account.'
+            },
+            status=status.HTTP_403_FORBIDDEN,
+          )
+        
         response = super().post(request, *args, **kwargs)
         return self.set_auth_cookies(response)
 
