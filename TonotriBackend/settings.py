@@ -195,7 +195,12 @@ DATABASES = {
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
+    'http://localhost:80',
     'http://localhost:4200'
+]
+
+CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:80"
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -205,14 +210,19 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = int(os.getenv('REDIS_PORT'))
+REDIS_DB = int(os.getenv('REDIS_DB'))
+CELERY_REDIS_DB = int(os.getenv('CELERY_REDIS_DB'))
+
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{CELERY_REDIS_DB}'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
 REDIS_CONFIG = {
-    'HOST': os.getenv('REDIS_HOST'),
-    'PORT': int(os.getenv('REDIS_PORT')),
-    'DB': int(os.getenv('REDIS_DB'))
+    'HOST': REDIS_HOST,
+    'PORT': REDIS_PORT,
+    'DB': REDIS_DB
 }
 
 # Password validation

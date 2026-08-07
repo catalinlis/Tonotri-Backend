@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: .
+    container_name: tonotri-backend-app
+    ports:
+      - '8000:8000'
+
+  celery:
+    build:
+      context: .
+    container_name: tonotri-celery
+    command: celery -A TonotriBackend worker -l info -P solo
+    depends_on:
+      - redis
+
+  redis:
+    image: redis
+    container_name: tonotri-redis
+    ports:
+      - '6379:6379'
+
+  
