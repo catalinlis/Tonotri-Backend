@@ -27,6 +27,10 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_REGION = os.getenv('AWS_REGION')
+AWS_SQS_IMAGE_PROCESSING_URL = os.getenv('AWS_SQS_IMAGE_PROCESSING_URL')
+AWS_BUCKET_NAME = os.getenv('AWS_BUCKET_NAME')
+
+AWS_CLOUDFRONT_DISTRIBUTION = os.getenv('AWS_CLOUDFRONT_DISTRIBUTION')
 
 UNSPLASH_API_ACCESS_KEY = os.getenv('UNSPLASH_API_ACCESS_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -36,7 +40,7 @@ RAPID_API_KEY = os.getenv('RAPID_API_KEY')
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ic3lr#&k)y8rk44m2&zjovf$^@%f)3=b%-)oz$k!7u$jn&zw7a'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True

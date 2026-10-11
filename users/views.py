@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer, UserPersonalInfoSerializer
-from media.services import S3Service
+from media.services import S3Service, SQSService
 from media.models import Image
 from media.serializers import ImageSerializer
 from .models import User
@@ -14,9 +14,12 @@ PROFILE_PHOTO_RAW_BUCKET_PATH = 'images/profile-photo/raw/'
 PROFILE_PHOTO_RESIZED_BUCKET_PATH = 'images/profile-photo/resized'
 
 class UserViewSet(ModelViewSet):
-    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Never expose another user's account through generic CRUD routes."""
+        return User.objects.filter(pk=self.request.user.pk)
 
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
@@ -32,33 +35,44 @@ class UserViewSet(ModelViewSet):
     def upload_profile_photo(self, request):
         user = request.user
         file = request.FILES.get('file')
+        
+        try:
+            if not file:
+                return Response(
+                    {'error': 'No file provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        if not file:
-            return Response(
-                {'error': 'No file provided'},
-                status=status.HTTP_400_BAD_REQUEST
+            s3_service = S3Service()
+
+            key = s3_service.upload_file(
+                file=file, 
+                user_id=user.id, 
+                prefix=PROFILE_PHOTO_RAW_BUCKET_PATH
             )
 
-        s3_service = S3Service()
-        key = s3_service.upload_file(
-            file=file, 
-            user_id=user.id, 
-            prefix=PROFILE_PHOTO_RAW_BUCKET_PATH
-        )
+            image = Image.objects.create(
+                image_name=key,
+                uploaded_by=user
+            )
 
-        image = Image.objects.create(
-            image_name=key,
-            uploaded_by=user
-        )
+            user.profile_image = image
+            user.save()
 
-        user.profile_image = image
-        user.save()
+            sqs_service = SQSService()
+            sqs_service.send_image_processing_message(image.id, key)
 
-        return Response({
-                'message': 'Profile photo updated',
-                'profile_image': ImageSerializer(image, context={'request': request}).data
-            }, status=status.HTTP_200_OK
-        )
+            return Response({
+                    'message': 'Profile photo updated',
+                    'profile_image': ImageSerializer(image, context={'request': request}).data
+                }, status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": "An unexpected error occurred"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
     @action(detail=False, methods=['put'], url_path='me/countries')
     def add_countries(self, request):

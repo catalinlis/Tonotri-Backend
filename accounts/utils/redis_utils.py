@@ -33,9 +33,6 @@ class VerificationEmail:
     def compare_code(self, email: str, code: str) -> bool:
         stored_code = self.get_code(email)
 
-        print(stored_code)
-        print(code)
-
         if stored_code:
             if stored_code == code:
                 return True
