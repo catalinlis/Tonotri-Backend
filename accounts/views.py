@@ -2,7 +2,13 @@ from auth_kit.social.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from auth_kit.views import RegisterView, LoginView, LogoutView
-from .serializers import CustomRegisterSerializer, UserProfileSerializer
+from .serializers import (
+    CustomRegisterSerializer,
+    GuidRequestSerializer,
+    LoginRequestSerializer,
+    UserProfileSerializer,
+    VerificationCodeSerializer,
+)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -13,9 +19,7 @@ from .tasks import send_email_task
 from users.models import User
 from accounts.utils.redis_utils import VerificationEmail
 from django.contrib.auth import authenticate
-import uuid
 import secrets
-import sys
 
 VerificationEmail = VerificationEmail()
 
@@ -46,8 +50,10 @@ class CustomRegisterView(AuthCookieMixin, RegisterView):
 class CustomLoginView(AuthCookieMixin, LoginView):
 
     def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        password = request.data.get('password')
+        input_serializer = LoginRequestSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        username = input_serializer.validated_data['username']
+        password = input_serializer.validated_data['password']
         
         user = authenticate(
             request=request,
@@ -96,15 +102,9 @@ class CheckTokenView(APIView):
   authentication_classes = []
 
   def get(self, request):
-    token = request.query_params.get('guid')
-
-    if not token:
-      return Response({'error': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-      guid = uuid.UUID(token)
-    except ValueError:
-      return Response({'error': 'Invalid token format.'}, status=status.HTTP_400_BAD_REQUEST)
+    input_serializer = GuidRequestSerializer(data=request.query_params)
+    input_serializer.is_valid(raise_exception=True)
+    guid = input_serializer.validated_data['guid']
 
     try:
       user = User.objects.get(guid=guid)
@@ -121,13 +121,9 @@ class GenerateValidationToken(APIView):
   authentication_classes = []
 
   def post(self, request):
-    guid = request.data.get('guid')
-    
-    if not guid:
-      return Response(
-        {'error': 'GUID is required'},
-        status=status.HTTP_400_BAD_REQUEST
-      )
+    input_serializer = GuidRequestSerializer(data=request.data)
+    input_serializer.is_valid(raise_exception=True)
+    guid = input_serializer.validated_data['guid']
     
     user = User.objects.filter(guid__exact=guid).first()
     
@@ -185,14 +181,10 @@ class ValidateToken(APIView):
   authentication_classes = []
 
   def post(self, request):
-    guid = request.data.get('guid')
-    token = request.data.get('code')
-    
-    if not guid:
-      return Response(
-        {'error': 'GUID is required'},
-        status=status.HTTP_400_BAD_REQUEST
-      )
+    input_serializer = VerificationCodeSerializer(data=request.data)
+    input_serializer.is_valid(raise_exception=True)
+    guid = input_serializer.validated_data['guid']
+    token = input_serializer.validated_data['code']
     
     user = User.objects.filter(guid__exact=guid).first()
     

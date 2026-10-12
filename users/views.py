@@ -3,7 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import UserSerializer, UserPersonalInfoSerializer
+from .serializers import (
+    ProfilePhotoUploadSerializer,
+    UserPersonalInfoSerializer,
+    UserSerializer,
+    VisitedCountriesSerializer,
+)
 from media.services import S3Service, SQSService
 from media.models import Image
 from media.serializers import ImageSerializer
@@ -34,15 +39,11 @@ class UserViewSet(ModelViewSet):
     @action(detail=False, methods=['put'], url_path='me/profile-photo')
     def upload_profile_photo(self, request):
         user = request.user
-        file = request.FILES.get('file')
+        input_serializer = ProfilePhotoUploadSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        file = input_serializer.validated_data['file']
         
         try:
-            if not file:
-                return Response(
-                    {'error': 'No file provided'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             s3_service = S3Service()
 
             key = s3_service.upload_file(
@@ -76,7 +77,9 @@ class UserViewSet(ModelViewSet):
         
     @action(detail=False, methods=['put'], url_path='me/countries')
     def add_countries(self, request):
-        codes = request.data.get('codes', [])
+        input_serializer = VisitedCountriesSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        codes = input_serializer.validated_data['codes']
 
         countries = Country.objects.filter(alpha2__in=codes)
 

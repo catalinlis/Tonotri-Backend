@@ -8,6 +8,14 @@ from .services.explore_service import CountryDescriptionService, CityDescription
 from .services.explore_service import LandmarkVariationsService, LandmarkDescriptionService
 from .clients.geocities_client import GeoDbCitiesClient
 from .models import Country
+from .serializers import (
+    CityQuerySerializer,
+    CountryCitiesQuerySerializer,
+    CountryQuerySerializer,
+    LandmarkDescriptionQuerySerializer,
+    LandmarkQuerySerializer,
+    LocationQuerySerializer,
+)
 import requests
 import random
 import json
@@ -17,10 +25,11 @@ class LocationPhotos(APIView):
     url = 'https://api.unsplash.com/search/photos'
 
     def get(self, request):
-    
-        country = request.GET.get('country', '')
-        city = request.GET.get('city', '') 
-        population = int(request.GET.get('population', '0'))
+        input_serializer = LocationQuerySerializer(data=request.query_params)
+        input_serializer.is_valid(raise_exception=True)
+        country = input_serializer.validated_data['country']
+        city = input_serializer.validated_data['city']
+        population = input_serializer.validated_data['population']
 
         country_obj = Country.objects.filter(country_name__iexact=country).first()
 
@@ -31,7 +40,6 @@ class LocationPhotos(APIView):
             )
 
         query_location = self._build_query(country_obj.country_name , city, population)
-        print(query_location)
 
         params = {
             'query': query_location,
@@ -74,7 +82,9 @@ class CountryDescriptionAI(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        country = request.GET.get('country', '')
+        input_serializer = CountryQuerySerializer(data=request.query_params)
+        input_serializer.is_valid(raise_exception=True)
+        country = input_serializer.validated_data['country']
 
         country_obj = Country.objects.filter(country_name__iexact=country).first()
 
@@ -102,8 +112,10 @@ class CountryCities(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        country = request.GET.get('country', '')
-        cities = request.GET.get('search', '')
+        input_serializer = CountryCitiesQuerySerializer(data=request.query_params)
+        input_serializer.is_valid(raise_exception=True)
+        country = input_serializer.validated_data['country']
+        cities = input_serializer.validated_data['search']
 
         client = GeoDbCitiesClient(settings.RAPID_API_KEY)
 
@@ -142,9 +154,11 @@ class CityDescriptionAI(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        country = request.GET.get('country', '')
-        city = request.GET.get('city', '')
-        population = int(request.GET.get('population', '0'))
+        input_serializer = CityQuerySerializer(data=request.query_params)
+        input_serializer.is_valid(raise_exception=True)
+        country = input_serializer.validated_data['country']
+        city = input_serializer.validated_data['city']
+        population = input_serializer.validated_data['population']
 
         country_obj = Country.objects.filter(country_name__iexact=country).first()
 
@@ -172,14 +186,9 @@ class LandmarkVariationsAI(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        
-        landmark = request.GET.get('landmark', '')
-
-        if not landmark:
-            return Response(
-                {'error': 'Provide a landmark'},
-                status = status.HTTP_400_BAD_REQUEST
-            )
+        input_serializer = LandmarkQuerySerializer(data=request.query_params)
+        input_serializer.is_valid(raise_exception=True)
+        landmark = input_serializer.validated_data['landmark']
 
         service = LandmarkVariationsService()
         result = service.generate(landmark)
@@ -199,16 +208,11 @@ class LandmarkDescriptionAI(APIView):
     permission_classes = [IsActiveUser]
 
     def get(self, request):
-        
-        landmark = request.GET.get('landmark', '')
-        city = request.GET.get('city', '')
-        country = request.GET.get('country', '')
-
-        if not (landmark and city and country):
-            return Response(
-                {'error': 'Provide a landmark'},
-                status = status.HTTP_400_BAD_REQUEST
-            )
+        input_serializer = LandmarkDescriptionQuerySerializer(data=request.query_params)
+        input_serializer.is_valid(raise_exception=True)
+        landmark = input_serializer.validated_data['landmark']
+        city = input_serializer.validated_data['city']
+        country = input_serializer.validated_data['country']
 
         service = LandmarkDescriptionService()
         result = service.generate(landmark, city, country)

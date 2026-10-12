@@ -4,28 +4,35 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from .services import S3Service, CloudFrontService
 from .models import Image
-from .serializers import ImageSerializer
+from .serializers import ImageSerializer, ImageUploadSerializer
 import time
+
+IMAGE_RAW_BUCKET_PATH = 'images/raw/'
 
 class ImageViewSet(ModelViewSet):
     queryset = Image.objects.all()
     permission_classes = [IsAuthenticated]
     serializer_class = ImageSerializer
 
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ImageUploadSerializer
+        return ImageSerializer
+
     def get_queryset(self):
         return Image.objects.filter(uploaded_by=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        file = request.FILES.get("file")
-
-        if not file:
-            return Response(
-                {'error': 'No file provided'},
-                status = status.HTTP_400_BAD_REQUEST
-            )
+        input_serializer = self.get_serializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        file = input_serializer.validated_data['file']
 
         s3_service = S3Service()
-        key = s3_service.upload_file(file, request.user.id)
+        key = s3_service.upload_file(
+            file=file,
+            user_id=request.user.id,
+            prefix=IMAGE_RAW_BUCKET_PATH,
+        )
 
         image = Image.objects.create(
             image_name = key,
