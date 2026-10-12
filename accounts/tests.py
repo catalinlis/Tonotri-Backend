@@ -6,6 +6,33 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from users.models import User
+from .serializers import LoginRequestSerializer, VerificationCodeSerializer
+
+
+class AccountSerializerTests(APITestCase):
+    def test_login_serializer_trims_username_but_not_password(self):
+        serializer = LoginRequestSerializer(
+            data={"username": "  traveler  ", "password": " password "}
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["username"], "traveler")
+        self.assertEqual(serializer.validated_data["password"], " password ")
+
+    def test_verification_code_accepts_exactly_six_digits(self):
+        serializer = VerificationCodeSerializer(
+            data={"guid": "9f601abe-52e4-4d89-a658-39bb3595599e", "code": "123456"}
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_verification_code_rejects_non_digits(self):
+        serializer = VerificationCodeSerializer(
+            data={"guid": "9f601abe-52e4-4d89-a658-39bb3595599e", "code": "abcdef"}
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("code", serializer.errors)
 
 
 class ActiveUserAuthorizationTests(APITestCase):

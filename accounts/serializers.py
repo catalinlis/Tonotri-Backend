@@ -7,15 +7,15 @@ from datetime import date
 User = get_user_model()
 
 class LoginRequestSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=20, trim_whitespaces=True)
-    password = serializers.CharField(write_only=True, trim_whitespaces=False)
+    username = serializers.CharField(max_length=20, trim_whitespace=True)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
 
 class GuidRequestSerializer(serializers.Serializer):
     guid = serializers.UUIDField()
 
 class VerificationCodeSerializer(GuidRequestSerializer):
     code = serializers.RegexField(
-        regex=r'^d{6}$',
+        regex=r'^\d{6}$',
         write_only=True,
         error_messages={'invalid': 'Code must contain exactly 6 digits.'},
     )

@@ -26,7 +26,7 @@ class ImageUploadSerializer(serializers.Serializer):
             raise serializers.ValidationError('Image must be 10MB or smaller.')
 
         content_type = getattr(value, 'content_type', None)
-        if content_type in allowed_types:
+        if content_type not in allowed_types:
             raise serializers.ValidationError('Upload a JPEG, PNG, or WebP image.')
 
         return value

@@ -3,10 +3,35 @@ from datetime import date
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from users.models import User
 
 from .models import Image
+from .serializers import ImageUploadSerializer
+
+
+class ImageUploadSerializerTests(APITestCase):
+    def test_accepts_supported_image_content_type(self):
+        upload = SimpleUploadedFile(
+            "photo.jpg",
+            b"test-image-content",
+            content_type="image/jpeg",
+        )
+        serializer = ImageUploadSerializer(data={"file": upload})
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_rejects_unsupported_content_type(self):
+        upload = SimpleUploadedFile(
+            "notes.txt",
+            b"not-an-image",
+            content_type="text/plain",
+        )
+        serializer = ImageUploadSerializer(data={"file": upload})
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("file", serializer.errors)
 
 
 class ImageAuthorizationTests(APITestCase):
