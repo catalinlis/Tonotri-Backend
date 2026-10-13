@@ -8,6 +8,8 @@ from .services.explore_service import CountryDescriptionService, CityDescription
 from .services.explore_service import LandmarkVariationsService, LandmarkDescriptionService
 from .clients.geocities_client import GeoDbCitiesClient
 from .models import Country
+from .models import AIUsageEvent
+from django.db.models import Count, Sum
 from .serializers import (
     CityQuerySerializer,
     CountryCitiesQuerySerializer,
@@ -95,7 +97,7 @@ class CountryDescriptionAI(APIView):
             )
 
         service = CountryDescriptionService()
-        result = service.generate(country)
+        result = service.generate(country, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -169,7 +171,7 @@ class CityDescriptionAI(APIView):
             )
 
         service = CityDescriptionService()
-        result = service.generate(city, country, population)
+        result = service.generate(city, country, population, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -191,7 +193,7 @@ class LandmarkVariationsAI(APIView):
         landmark = input_serializer.validated_data['landmark']
 
         service = LandmarkVariationsService()
-        result = service.generate(landmark)
+        result = service.generate(landmark, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -215,7 +217,7 @@ class LandmarkDescriptionAI(APIView):
         country = input_serializer.validated_data['country']
 
         service = LandmarkDescriptionService()
-        result = service.generate(landmark, city, country)
+        result = service.generate(landmark, city, country, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -227,4 +229,40 @@ class LandmarkDescriptionAI(APIView):
             result['message'],
             status=status.HTTP_200_OK
         )
+
+
+class AIUsageSummary(APIView):
+    permission_classes = [IsActiveUser]
+
+    def get(self, request):
+        events = AIUsageEvent.objects.filter(user=request.user)
+        totals = events.aggregate(
+            input_tokens=Sum('input_tokens'),
+            cached_input_tokens=Sum('cached_input_tokens'),
+            output_tokens=Sum('output_tokens'),
+            estimated_cost_usd=Sum('estimated_cost_usd'),
+        )
+        by_service = list(
+            events.values('service')
+            .annotate(
+                requests=Count('id'),
+                estimated_cost_usd=Sum('estimated_cost_usd'),
+            )
+            .order_by('service')
+        )
+
+        return Response({
+            'requests': events.count(),
+            'input_tokens': totals['input_tokens'] or 0,
+            'cached_input_tokens': totals['cached_input_tokens'] or 0,
+            'output_tokens': totals['output_tokens'] or 0,
+            'estimated_cost_usd': str(totals['estimated_cost_usd'] or 0),
+            'by_service': [
+                {
+                    **item,
+                    'estimated_cost_usd': str(item['estimated_cost_usd']),
+                }
+                for item in by_service
+            ],
+        })
         

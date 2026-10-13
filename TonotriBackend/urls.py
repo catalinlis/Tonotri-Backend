@@ -19,7 +19,7 @@ from django.urls import path, include
 from accounts.views import CustomRegisterView, CustomLoginView, RegisterStep
 from accounts.views import GoogleLogin, CustomLogoutView, ProfileView, CheckTokenView
 from accounts.views import GenerateValidationToken, ValidateToken, NextStep
-from explore.views import LocationPhotos, CountryDescriptionAI, CountryCities, CityDescriptionAI, LandmarkVariationsAI, LandmarkDescriptionAI
+from explore.views import LocationPhotos, CountryDescriptionAI, CountryCities, CityDescriptionAI, LandmarkVariationsAI, LandmarkDescriptionAI, AIUsageSummary
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -46,4 +46,5 @@ urlpatterns = [
     path('api/explore/city-description/', CityDescriptionAI.as_view(), name='city_description'),
     path('api/explore/landmark-variations/', LandmarkVariationsAI.as_view(), name='landmark-variations'),
     path('api/explore/landmark-description/', LandmarkDescriptionAI.as_view(), name='landmark-description'),
+    path('api/explore/ai-usage/', AIUsageSummary.as_view(), name='ai-usage'),
 ]

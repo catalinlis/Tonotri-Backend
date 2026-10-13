@@ -1,31 +1,18 @@
-from openai import OpenAI
-from django.conf import settings
 from .base_service import BaseDescriptionAI
-from explore.clients.openai_client import OpenAIClient
 from .schemas import CountrySchema, BigCitySchema, CitySchema, LandmarkSchema
-import json
 
 class CountryDescriptionService(BaseDescriptionAI):
+    service_name = 'country_description'
 
-    def __init__(self, client: OpenAIClient | None = None):
-        self.client = client or OpenAIClient()
-
-    def generate(self, country: str):
+    def generate(self, country: str, user=None):
         try:
             prompt = self._build_prompt(country)
-
-            raw = self.client.generate_json(
-                model = 'gpt-5-mini',
-                prompt = prompt,
-                schema = CountrySchema.get()
+            return self._generate_cached(
+                parameters={'country': country.strip().casefold()},
+                prompt=prompt,
+                schema=CountrySchema.get(),
+                user=user,
             )
-        
-            message = self._parse(raw)
-
-            return {
-                'success': True,
-                'message': message
-            }
 
         except Exception as e:
             print(e)
@@ -53,31 +40,22 @@ class CountryDescriptionService(BaseDescriptionAI):
         - no extra fields
         """
 
-    def _parse(self, raw: str):
-        return json.loads(raw)
-
 class CityDescriptionService(BaseDescriptionAI):
+    service_name = 'city_description'
 
-    def __init__(self, client: OpenAIClient | None = None):
-        self.client = client or OpenAIClient()
-
-    def generate(self, city: str, country: str, population: int):
+    def generate(self, city: str, country: str, population: int, user=None):
         try:
-            prompt = self._build_prompt(city, country, int(population))
-            schema = self._get_schema(int(population))
-
-            raw = self.client.generate_json(
-                model = 'gpt-5-mini',
-                prompt = prompt,
-                schema = schema
+            population = int(population)
+            return self._generate_cached(
+                parameters={
+                    'city': city.strip().casefold(),
+                    'country': country.strip().casefold(),
+                    'population': population,
+                },
+                prompt=self._build_prompt(city, country, population),
+                schema=self._get_schema(population),
+                user=user,
             )
-
-            message = self._parse(raw)
-
-            return {
-                'success': True,
-                'message': message
-            }
         
         except Exception as e:
             print(e)
@@ -85,9 +63,6 @@ class CityDescriptionService(BaseDescriptionAI):
                 "success": False,
                 "message": f"Request for {country}, {city} failed."
             }
-
-    def _parse(self, raw: str):
-        return json.loads(raw)
 
     def _build_prompt(self, city: str, country: str, population: int) -> str:
         
@@ -206,26 +181,16 @@ class CityDescriptionService(BaseDescriptionAI):
             return CitySchema.get()
 
 class LandmarkVariationsService(BaseDescriptionAI):
+    service_name = 'landmark_variations'
     
-    def __init__(self, client: OpenAIClient | None = None):
-        self.client = client or OpenAIClient()
-
-    def generate(self, landmark: str):
+    def generate(self, landmark: str, user=None):
         try: 
-            prompt = self._build_prompt(landmark)
-
-            raw = self.client.generate_json(
-                model = 'gpt-5-mini',
-                prompt = prompt,
-                schema = self._get_schema()
+            return self._generate_cached(
+                parameters={'landmark': landmark.strip().casefold()},
+                prompt=self._build_prompt(landmark),
+                schema=self._get_schema(),
+                user=user,
             )
-
-            message = self._parse(raw)
-
-            return {
-                "success": True,
-                "message": message
-            }
 
         except Exception as e:
             print(e)
@@ -233,9 +198,6 @@ class LandmarkVariationsService(BaseDescriptionAI):
                 "success": False,
                 "message": f"Request for {landmark} failed."
             }
-
-    def _parse(self, raw: str):
-        return json.loads(raw)
 
     def _build_prompt(self, landmark: str) -> str:
         return f"""
@@ -268,26 +230,20 @@ class LandmarkVariationsService(BaseDescriptionAI):
         }
 
 class LandmarkDescriptionService(BaseDescriptionAI):
+    service_name = 'landmark_description'
 
-    def __init__(self, client: OpenAIClient | None = None):
-        self.client = client or OpenAIClient()
-
-    def generate(self, landmark: str, city: str, country: str):
+    def generate(self, landmark: str, city: str, country: str, user=None):
         try: 
-            prompt = self._build_prompt(landmark, city, country)
-
-            raw = self.client.generate_json(
-                model = 'gpt-5-mini',
-                prompt = prompt,
-                schema = LandmarkSchema.get()
+            return self._generate_cached(
+                parameters={
+                    'landmark': landmark.strip().casefold(),
+                    'city': city.strip().casefold(),
+                    'country': country.strip().casefold(),
+                },
+                prompt=self._build_prompt(landmark, city, country),
+                schema=LandmarkSchema.get(),
+                user=user,
             )
-
-            message = self._parse(raw)
-
-            return {
-                "success": True,
-                "message": message
-            }
 
         except Exception as e:
             print(e)
@@ -295,9 +251,6 @@ class LandmarkDescriptionService(BaseDescriptionAI):
                 "success": False,
                 "message": f"Request for {landmark} failed."
             }
-
-    def _parse(self, raw: str):
-        return json.loads(raw)
 
     def _build_prompt(self, landmark: str, city: str, country: str) -> str:
         return f"""

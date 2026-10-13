@@ -1,5 +1,14 @@
 from openai import OpenAI
 from django.conf import settings
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class GeneratedJSON:
+    output_text: str
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
 
 class OpenAIClient:
 
@@ -19,4 +28,12 @@ class OpenAIClient:
             }
         )
 
-        return response.output_text
+        usage = response.usage
+        input_details = getattr(usage, 'input_tokens_details', None)
+
+        return GeneratedJSON(
+            output_text=response.output_text,
+            input_tokens=usage.input_tokens,
+            cached_input_tokens=getattr(input_details, 'cached_tokens', 0) or 0,
+            output_tokens=usage.output_tokens,
+        )
