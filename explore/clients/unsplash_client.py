@@ -2,6 +2,8 @@ import requests
 
 
 class UnsplashClient:
+    """Retrieve location photo URLs from Unsplash."""
+
     SEARCH_URL = 'https://api.unsplash.com/search/photos'
 
     def __init__(self, access_key, session=None):
@@ -9,6 +11,8 @@ class UnsplashClient:
         self.session = session or requests
 
     def search_photo_urls(self, query, per_page=10):
+        """Return full-size photo URLs matching a search query."""
+
         response = self.session.get(
             self.SEARCH_URL,
             params={

@@ -21,6 +21,8 @@ from .serializers import (
 )
 
 class LocationPhotos(APIView):
+    """Return cached or newly selected photos for a known country."""
+
     permission_classes = [IsActiveUser]
 
     def get(self, request):
@@ -212,6 +214,8 @@ class LandmarkDescriptionAI(APIView):
 
 
 class AIUsageSummary(APIView):
+    """Summarize the authenticated user's AI usage and cost."""
+
     permission_classes = [IsActiveUser]
 
     def get(self, request):

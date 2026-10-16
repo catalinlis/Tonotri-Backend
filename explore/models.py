@@ -8,6 +8,8 @@ class Country(models.Model):
 
 
 class AIUsageEvent(models.Model):
+    """Record token usage and estimated cost for one AI request."""
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

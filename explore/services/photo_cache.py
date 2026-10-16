@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 class UnsplashPhotoCache:
+    """Cache photo URLs in Redis without making Redis mandatory."""
+
     PREFIX = 'unsplash_photos:v1'
 
     def __init__(self, client=None):
@@ -21,6 +23,8 @@ class UnsplashPhotoCache:
 
     @staticmethod
     def request_hash(query, photo_count):
+        """Build a stable cache key from a normalized photo request."""
+
         canonical = json.dumps(
             {
                 'query': ' '.join(query.casefold().split()),
@@ -33,6 +37,8 @@ class UnsplashPhotoCache:
         return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
     def get(self, request_hash):
+        """Return cached URLs, or a cache miss when Redis is unavailable."""
+
         try:
             cached = self.client.get(f'{self.PREFIX}:{request_hash}')
         except redis.RedisError as exc:
@@ -41,6 +47,8 @@ class UnsplashPhotoCache:
         return json.loads(cached) if cached is not None else None
 
     def set(self, request_hash, photo_urls):
+        """Cache photo URLs when Redis is available."""
+
         try:
             self.client.setex(
                 f'{self.PREFIX}:{request_hash}',

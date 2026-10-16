@@ -5,6 +5,8 @@ from .photo_cache import UnsplashPhotoCache
 
 
 class LocationPhotoService:
+    """Select and cache representative photos for a location."""
+
     SEARCH_RESULT_COUNT = 10
     PHOTO_COUNT = 5
 
@@ -14,6 +16,8 @@ class LocationPhotoService:
         self.sampler = sampler or random.sample
 
     def get_photo_urls(self, query):
+        """Return cached URLs or select photos from a new search."""
+
         request_hash = self.cache.request_hash(query, self.PHOTO_COUNT)
         cached = self.cache.get(request_hash)
         if cached is not None:

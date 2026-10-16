@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class AIDescriptionCache:
+    """Cache AI descriptions in Redis without making Redis mandatory."""
+
     PREFIX = 'ai_description:v1'
 
     def __init__(self, client=None):
@@ -24,6 +26,8 @@ class AIDescriptionCache:
 
     @staticmethod
     def request_hash(service, parameters):
+        """Build a stable cache key from normalized request parameters."""
+
         canonical = json.dumps(
             {'service': service, 'parameters': parameters},
             sort_keys=True,
@@ -33,6 +37,8 @@ class AIDescriptionCache:
         return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
     def get(self, request_hash):
+        """Return cached content, or a cache miss when Redis is unavailable."""
+
         try:
             cached = self.client.get(f'{self.PREFIX}:{request_hash}')
         except redis.RedisError as exc:
@@ -41,6 +47,8 @@ class AIDescriptionCache:
         return json.loads(cached) if cached is not None else None
 
     def set(self, request_hash, value):
+        """Cache generated content when Redis is available."""
+
         try:
             self.client.setex(
                 f'{self.PREFIX}:{request_hash}',
@@ -52,10 +60,14 @@ class AIDescriptionCache:
 
 
 class AIUsageTracker:
+    """Calculate and persist per-user OpenAI usage costs."""
+
     MILLION = Decimal('1000000')
 
     @classmethod
     def calculate_cost(cls, input_tokens, cached_input_tokens, output_tokens):
+        """Estimate request cost from configured per-token prices."""
+
         cached_input_tokens = min(cached_input_tokens, input_tokens)
         uncached_input_tokens = input_tokens - cached_input_tokens
         return (
@@ -66,6 +78,8 @@ class AIUsageTracker:
 
     @classmethod
     def record(cls, *, user, service, model, request_hash, result):
+        """Persist usage for authenticated users."""
+
         if user is None or not getattr(user, 'is_authenticated', False):
             return None
 

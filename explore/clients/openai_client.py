@@ -5,17 +5,22 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class GeneratedJSON:
+    """Hold structured output and its token usage."""
+
     output_text: str
     input_tokens: int
     cached_input_tokens: int
     output_tokens: int
 
 class OpenAIClient:
+    """Generate schema-constrained JSON through the OpenAI Responses API."""
 
     def __init__(self):
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
     def generate_json(self, model: str, prompt: str, schema: dict):
+        """Generate JSON and return its text with usage metadata."""
+
         response = self.client.responses.create(
             model=model,
             input=prompt,

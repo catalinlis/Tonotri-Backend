@@ -5,6 +5,8 @@ from django.conf import settings
 from .ai_cache import AIDescriptionCache, AIUsageTracker
 
 class BaseDescriptionAI:
+    """Provide cached, tracked JSON generation for travel services."""
+
     service_name = None
 
     def __init__(self, client=None, cache=None):
@@ -14,6 +16,8 @@ class BaseDescriptionAI:
         self.cache = cache or AIDescriptionCache()
 
     def _generate_cached(self, *, parameters, prompt, schema, user=None):
+        """Return cached output or generate, track, and cache a new result."""
+
         model = settings.OPENAI_DESCRIPTION_MODEL
         request_hash = self.cache.request_hash(self.service_name, parameters)
         cached = self.cache.get(request_hash)

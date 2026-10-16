@@ -2,6 +2,8 @@ from .base_service import BaseDescriptionAI
 from .schemas import CountrySchema, BigCitySchema, CitySchema, LandmarkSchema
 
 class CountryDescriptionService(BaseDescriptionAI):
+    """Generate structured travel information for a country."""
+
     service_name = 'country_description'
 
     def generate(self, country: str, user=None):
@@ -41,6 +43,8 @@ class CountryDescriptionService(BaseDescriptionAI):
         """
 
 class CityDescriptionService(BaseDescriptionAI):
+    """Generate travel information suited to a city's population."""
+
     service_name = 'city_description'
 
     def generate(self, city: str, country: str, population: int, user=None):
@@ -181,6 +185,8 @@ class CityDescriptionService(BaseDescriptionAI):
             return CitySchema.get()
 
 class LandmarkVariationsService(BaseDescriptionAI):
+    """Resolve a landmark to its official location details."""
+
     service_name = 'landmark_variations'
     
     def generate(self, landmark: str, user=None):
@@ -230,6 +236,8 @@ class LandmarkVariationsService(BaseDescriptionAI):
         }
 
 class LandmarkDescriptionService(BaseDescriptionAI):
+    """Generate a structured visitor guide for a landmark."""
+
     service_name = 'landmark_description'
 
     def generate(self, landmark: str, city: str, country: str, user=None):
