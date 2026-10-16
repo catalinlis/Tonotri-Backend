@@ -1,11 +1,14 @@
 import hashlib
 import json
+import logging
 from decimal import Decimal
 
 import redis
 from django.conf import settings
 
 from explore.models import AIUsageEvent
+
+logger = logging.getLogger(__name__)
 
 
 class AIDescriptionCache:
@@ -30,15 +33,22 @@ class AIDescriptionCache:
         return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
     def get(self, request_hash):
-        cached = self.client.get(f'{self.PREFIX}:{request_hash}')
+        try:
+            cached = self.client.get(f'{self.PREFIX}:{request_hash}')
+        except redis.RedisError as exc:
+            logger.warning('AI cache is unavailable; continuing without it: %s', exc)
+            return None
         return json.loads(cached) if cached is not None else None
 
     def set(self, request_hash, value):
-        self.client.setex(
-            f'{self.PREFIX}:{request_hash}',
-            settings.AI_DESCRIPTION_CACHE_TTL,
-            json.dumps(value, separators=(',', ':')),
-        )
+        try:
+            self.client.setex(
+                f'{self.PREFIX}:{request_hash}',
+                settings.AI_DESCRIPTION_CACHE_TTL,
+                json.dumps(value, separators=(',', ':')),
+            )
+        except redis.RedisError as exc:
+            logger.warning('AI cache is unavailable; result was not cached: %s', exc)
 
 
 class AIUsageTracker:

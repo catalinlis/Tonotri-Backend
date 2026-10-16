@@ -1,16 +1,18 @@
 import json
 from datetime import date
 from decimal import Decimal
+from unittest.mock import Mock
 
+import redis
 from django.test import SimpleTestCase, TestCase, override_settings
-
 from users.models import User
-
 from .clients.openai_client import GeneratedJSON
 from .models import AIUsageEvent
 from .serializers import LandmarkDescriptionQuerySerializer
 from .services.ai_cache import AIDescriptionCache, AIUsageTracker
 from .services.explore_service import CountryDescriptionService
+from .services.photo_cache import UnsplashPhotoCache
+from .services.photo_service import LocationPhotoService
 
 
 class ExploreSerializerTests(SimpleTestCase):
@@ -53,6 +55,108 @@ class FakeOpenAIClient:
             cached_input_tokens=200,
             output_tokens=500,
         )
+
+
+class MemoryPhotoCache:
+    def __init__(self):
+        self.values = {}
+
+    def request_hash(self, query, photo_count):
+        return UnsplashPhotoCache.request_hash(query, photo_count)
+
+    def get(self, request_hash):
+        return self.values.get(request_hash)
+
+    def set(self, request_hash, value):
+        self.values[request_hash] = value
+
+
+class FakeUnsplashClient:
+    def __init__(self, urls):
+        self.urls = urls
+        self.calls = 0
+
+    def search_photo_urls(self, query, per_page):
+        self.calls += 1
+        return self.urls
+
+
+class LocationPhotoCachingTests(SimpleTestCase):
+    def test_reuses_cached_urls_for_equivalent_location_queries(self):
+        client = FakeUnsplashClient([f'https://example.com/{index}' for index in range(6)])
+        cache = MemoryPhotoCache()
+        service = LocationPhotoService(
+            client=client,
+            cache=cache,
+            sampler=lambda urls, count: urls[:count],
+        )
+
+        first = service.get_photo_urls('Bucharest Romania')
+        second = service.get_photo_urls('  BUCHAREST   romania ')
+
+        self.assertEqual(first, client.urls[:5])
+        self.assertEqual(second, first)
+        self.assertEqual(client.calls, 1)
+
+    def test_caches_empty_result_when_fewer_than_five_photos_exist(self):
+        client = FakeUnsplashClient(['https://example.com/1'])
+        service = LocationPhotoService(client=client, cache=MemoryPhotoCache())
+
+        self.assertEqual(service.get_photo_urls('Small place'), [])
+        self.assertEqual(service.get_photo_urls('Small place'), [])
+        self.assertEqual(client.calls, 1)
+
+
+@override_settings(
+    AI_DESCRIPTION_CACHE_TTL=86400,
+    UNSPLASH_PHOTO_CACHE_TTL=86400,
+)
+class RedisCacheFailureTests(SimpleTestCase):
+    def test_ai_cache_treats_redis_failure_as_a_cache_miss(self):
+        client = Mock()
+        client.get.side_effect = redis.ConnectionError('Redis is unavailable')
+        cache = AIDescriptionCache(client=client)
+
+        self.assertIsNone(cache.get('request-hash'))
+
+    def test_ai_cache_ignores_redis_failure_when_saving(self):
+        client = Mock()
+        client.setex.side_effect = redis.ConnectionError('Redis is unavailable')
+        cache = AIDescriptionCache(client=client)
+
+        cache.set('request-hash', {'country': 'Romania'})
+
+    @override_settings(OPENAI_DESCRIPTION_MODEL='gpt-5-mini')
+    def test_ai_service_continues_when_redis_is_unavailable(self):
+        redis_client = Mock()
+        redis_client.get.side_effect = redis.ConnectionError('Redis is unavailable')
+        redis_client.setex.side_effect = redis.ConnectionError('Redis is unavailable')
+        ai_client = FakeOpenAIClient()
+        service = CountryDescriptionService(
+            client=ai_client,
+            cache=AIDescriptionCache(client=redis_client),
+        )
+
+        result = service.generate('Romania')
+
+        self.assertTrue(result['success'])
+        self.assertFalse(result['cached'])
+        self.assertEqual(result['message'], {'country': 'Romania'})
+        self.assertEqual(ai_client.calls, 1)
+
+    def test_photo_cache_treats_redis_failure_as_a_cache_miss(self):
+        client = Mock()
+        client.get.side_effect = redis.ConnectionError('Redis is unavailable')
+        cache = UnsplashPhotoCache(client=client)
+
+        self.assertIsNone(cache.get('request-hash'))
+
+    def test_photo_cache_ignores_redis_failure_when_saving(self):
+        client = Mock()
+        client.setex.side_effect = redis.ConnectionError('Redis is unavailable')
+        cache = UnsplashPhotoCache(client=client)
+
+        cache.set('request-hash', ['https://example.com/photo'])
 
 
 @override_settings(

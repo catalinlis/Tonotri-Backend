@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.conf import settings
 from .services.explore_service import CountryDescriptionService, CityDescriptionService
 from .services.explore_service import LandmarkVariationsService, LandmarkDescriptionService
+from .services.photo_service import LocationPhotoService
 from .clients.geocities_client import GeoDbCitiesClient
 from .models import Country
 from .models import AIUsageEvent
@@ -18,13 +19,9 @@ from .serializers import (
     LandmarkQuerySerializer,
     LocationQuerySerializer,
 )
-import requests
-import random
-import json
 
 class LocationPhotos(APIView):
     permission_classes = [IsActiveUser]
-    url = 'https://api.unsplash.com/search/photos'
 
     def get(self, request):
         input_serializer = LocationQuerySerializer(data=request.query_params)
@@ -43,29 +40,12 @@ class LocationPhotos(APIView):
 
         query_location = self._build_query(country_obj.country_name , city, population)
 
-        params = {
-            'query': query_location,
-            'per_page': 10,
-            'client_id': settings.UNSPLASH_API_ACCESS_KEY
+        urls = LocationPhotoService().get_photo_urls(query_location)
+        photo_urls = {
+            'country': country_obj.country_name,
+            'photo_urls': urls,
+            'count': len(urls),
         }
-
-        response = requests.get(self.url, params=params)
-        data = response.json()
-        
-        photo_urls = {}
-        photo_urls['country'] = country_obj.country_name
-        urls = []
-        photo_urls['photo_urls'] = []
-
-
-        if data['results']:
-            for result in data['results']:
-                urls.append(result['urls']['full'])
-
-        if len(urls) >= 5 :
-            photo_urls['photo_urls'] = random.sample(urls, 5)
-
-        photo_urls['count'] = len(photo_urls['photo_urls'])
 
         return Response(photo_urls, status=status.HTTP_200_OK)
 
