@@ -6,8 +6,11 @@ from django.shortcuts import render
 from django.conf import settings
 from .services.explore_service import CountryDescriptionService, CityDescriptionService
 from .services.explore_service import LandmarkVariationsService, LandmarkDescriptionService
+from .services.photo_service import LocationPhotoService
 from .clients.geocities_client import GeoDbCitiesClient
 from .models import Country
+from .models import AIUsageEvent
+from django.db.models import Count, Sum
 from .serializers import (
     CityQuerySerializer,
     CountryCitiesQuerySerializer,
@@ -16,13 +19,11 @@ from .serializers import (
     LandmarkQuerySerializer,
     LocationQuerySerializer,
 )
-import requests
-import random
-import json
 
 class LocationPhotos(APIView):
+    """Return cached or newly selected photos for a known country."""
+
     permission_classes = [IsActiveUser]
-    url = 'https://api.unsplash.com/search/photos'
 
     def get(self, request):
         input_serializer = LocationQuerySerializer(data=request.query_params)
@@ -41,29 +42,12 @@ class LocationPhotos(APIView):
 
         query_location = self._build_query(country_obj.country_name , city, population)
 
-        params = {
-            'query': query_location,
-            'per_page': 10,
-            'client_id': settings.UNSPLASH_API_ACCESS_KEY
+        urls = LocationPhotoService().get_photo_urls(query_location)
+        photo_urls = {
+            'country': country_obj.country_name,
+            'photo_urls': urls,
+            'count': len(urls),
         }
-
-        response = requests.get(self.url, params=params)
-        data = response.json()
-        
-        photo_urls = {}
-        photo_urls['country'] = country_obj.country_name
-        urls = []
-        photo_urls['photo_urls'] = []
-
-
-        if data['results']:
-            for result in data['results']:
-                urls.append(result['urls']['full'])
-
-        if len(urls) >= 5 :
-            photo_urls['photo_urls'] = random.sample(urls, 5)
-
-        photo_urls['count'] = len(photo_urls['photo_urls'])
 
         return Response(photo_urls, status=status.HTTP_200_OK)
 
@@ -95,7 +79,7 @@ class CountryDescriptionAI(APIView):
             )
 
         service = CountryDescriptionService()
-        result = service.generate(country)
+        result = service.generate(country, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -169,7 +153,7 @@ class CityDescriptionAI(APIView):
             )
 
         service = CityDescriptionService()
-        result = service.generate(city, country, population)
+        result = service.generate(city, country, population, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -191,7 +175,7 @@ class LandmarkVariationsAI(APIView):
         landmark = input_serializer.validated_data['landmark']
 
         service = LandmarkVariationsService()
-        result = service.generate(landmark)
+        result = service.generate(landmark, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -215,7 +199,7 @@ class LandmarkDescriptionAI(APIView):
         country = input_serializer.validated_data['country']
 
         service = LandmarkDescriptionService()
-        result = service.generate(landmark, city, country)
+        result = service.generate(landmark, city, country, user=request.user)
 
         if result['success'] == False:
             return Response(
@@ -227,4 +211,42 @@ class LandmarkDescriptionAI(APIView):
             result['message'],
             status=status.HTTP_200_OK
         )
+
+
+class AIUsageSummary(APIView):
+    """Summarize the authenticated user's AI usage and cost."""
+
+    permission_classes = [IsActiveUser]
+
+    def get(self, request):
+        events = AIUsageEvent.objects.filter(user=request.user)
+        totals = events.aggregate(
+            input_tokens=Sum('input_tokens'),
+            cached_input_tokens=Sum('cached_input_tokens'),
+            output_tokens=Sum('output_tokens'),
+            estimated_cost_usd=Sum('estimated_cost_usd'),
+        )
+        by_service = list(
+            events.values('service')
+            .annotate(
+                requests=Count('id'),
+                estimated_cost_usd=Sum('estimated_cost_usd'),
+            )
+            .order_by('service')
+        )
+
+        return Response({
+            'requests': events.count(),
+            'input_tokens': totals['input_tokens'] or 0,
+            'cached_input_tokens': totals['cached_input_tokens'] or 0,
+            'output_tokens': totals['output_tokens'] or 0,
+            'estimated_cost_usd': str(totals['estimated_cost_usd'] or 0),
+            'by_service': [
+                {
+                    **item,
+                    'estimated_cost_usd': str(item['estimated_cost_usd']),
+                }
+                for item in by_service
+            ],
+        })
         
