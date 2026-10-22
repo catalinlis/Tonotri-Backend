@@ -71,7 +71,9 @@ class SQSService:
     def __init__(self):
         self.client = boto3.client(
             'sqs',
-            region_name = settings.AWS_REGION
+            aws_access_key_id=settings.AWS_ACCESS_KEY,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION,
         )
 
     def send_image_processing_message(self, image_id, s3_key):
