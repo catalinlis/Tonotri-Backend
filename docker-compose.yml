@@ -2,6 +2,10 @@ services:
   api:
     build:
       context: .
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
     container_name: tonotri-backend-app
     ports:
       - '8000:8000'
@@ -9,6 +13,10 @@ services:
   celery:
     build:
       context: .
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
     container_name: tonotri-celery
     command: celery -A TonotriBackend worker -l info -P solo
     depends_on:
