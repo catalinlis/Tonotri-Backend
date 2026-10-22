@@ -53,7 +53,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = True
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
-
+print(ALLOWED_HOSTS)
 AUTH_USER_MODEL = 'users.User'
 
 # Application definition
