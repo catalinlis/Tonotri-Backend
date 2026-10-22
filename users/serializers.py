@@ -27,7 +27,7 @@ class VisitedCountriesSerializer(serializers.Serializer):
     )
 
     def validate_codes(self, value):
-        return list(dict.fromkeys(code.strip().upper() for code in value))
+        return list(dict.fromkeys(code.strip().lower() for code in value))
 
 class UserSerializer(serializers.ModelSerializer):
     image_path = serializers.SerializerMethodField()
