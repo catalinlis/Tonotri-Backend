@@ -15,6 +15,10 @@ from media.serializers import ImageSerializer
 from .models import User
 from explore.models import Country
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 PROFILE_PHOTO_RAW_BUCKET_PATH = 'images/profile-photo/raw/'
 PROFILE_PHOTO_RESIZED_BUCKET_PATH = 'images/profile-photo/resized'
 
@@ -70,6 +74,7 @@ class UserViewSet(ModelViewSet):
             )
 
         except Exception as e:
+            logger.exception("Profile photo upload failed")
             return Response(
                 {"error": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
