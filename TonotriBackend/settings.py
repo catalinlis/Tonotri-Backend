@@ -94,6 +94,7 @@ SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -208,12 +209,15 @@ DATABASES = {
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:80',
-    'http://localhost:4200'
+    value.strip()
+    for value in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if value.strip()
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:80"
+    value.strip()
+    for value in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if value.strip()
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
