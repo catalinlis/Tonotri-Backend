@@ -6,7 +6,7 @@ services:
       - .env
     environment:
       REDIS_HOST: redis
-      ALLOWED_HOSTS: 'localhost,tonotri_backend_app,3.71.205.111,tonotri.com,www.tonotri.com' 
+      ALLOWED_HOSTS: 'tonotri.com,www.tonotri.com' 
     container_name: tonotri-backend-app
     ports:
       - '8000:8000'
