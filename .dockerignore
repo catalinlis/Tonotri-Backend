@@ -1,0 +1,10 @@
+.env
+.env.*
+_venv_
+.venv
+.git
+.gitignore
+__pycache__
+*.py[cod]
+*.log
+staticfiles

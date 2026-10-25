@@ -29,7 +29,6 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_REGION = os.getenv('AWS_REGION')
 AWS_SQS_IMAGE_PROCESSING_URL = os.getenv('AWS_SQS_IMAGE_PROCESSING_URL')
 AWS_BUCKET_NAME = os.getenv('AWS_BUCKET_NAME')
-
 AWS_CLOUDFRONT_DISTRIBUTION = os.getenv('AWS_CLOUDFRONT_DISTRIBUTION')
 
 UNSPLASH_API_ACCESS_KEY = os.getenv('UNSPLASH_API_ACCESS_KEY')
@@ -40,7 +39,9 @@ OPENAI_INPUT_PRICE_PER_MILLION = os.getenv('OPENAI_INPUT_PRICE_PER_MILLION', '0.
 OPENAI_CACHED_INPUT_PRICE_PER_MILLION = os.getenv('OPENAI_CACHED_INPUT_PRICE_PER_MILLION', '0.025')
 OPENAI_OUTPUT_PRICE_PER_MILLION = os.getenv('OPENAI_OUTPUT_PRICE_PER_MILLION', '2.00')
 AI_DESCRIPTION_CACHE_TTL = int(os.getenv('AI_DESCRIPTION_CACHE_TTL', '86400'))
+
 UNSPLASH_PHOTO_CACHE_TTL = int(os.getenv('UNSPLASH_PHOTO_CACHE_TTL', '86400'))
+
 RAPID_API_KEY = os.getenv('RAPID_API_KEY')
 
 # Quick-start development settings - unsuitable for production
@@ -50,9 +51,9 @@ RAPID_API_KEY = os.getenv('RAPID_API_KEY')
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'false').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -93,6 +94,8 @@ SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -143,7 +146,7 @@ AUTH_KIT = {
     'AUTH_JWT_COOKIE_NAME': 'auth-jwt',
     'AUTH_JWT_REFRESH_COOKIE_NAME': 'auth-refresh-jwt',
     'AUTH_COOKIE_HTTPONLY': True,
-    'AUTH_COOKIE_SECURE': False,    # Set True in production
+    'AUTH_COOKIE_SECURE': not DEBUG,    # Set True in production
     'AUTH_COOKIE_SAMESITE': 'Lax',
 
     # Session and password settings
@@ -206,13 +209,21 @@ DATABASES = {
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:80',
-    'http://localhost:4200'
+    value.strip()
+    for value in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if value.strip()
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:80"
+    value.strip()
+    for value in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if value.strip()
 ]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
@@ -268,3 +279,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"

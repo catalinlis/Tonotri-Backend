@@ -20,9 +20,12 @@ from accounts.views import CustomRegisterView, CustomLoginView, RegisterStep
 from accounts.views import GoogleLogin, CustomLogoutView, ProfileView, CheckTokenView
 from accounts.views import GenerateValidationToken, ValidateToken, NextStep
 from explore.views import LocationPhotos, CountryDescriptionAI, CountryCities, CityDescriptionAI, LandmarkVariationsAI, LandmarkDescriptionAI, AIUsageSummary
+from .health import liveness, readiness
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/live/', liveness, name='health-live'),
+    path('health/ready/', readiness, name='health-ready'),
     
     # Explicitly defining the paths to avoid 404s
     path('api/auth/register/', CustomRegisterView.as_view(), name='register'),

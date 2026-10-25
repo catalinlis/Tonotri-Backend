@@ -2,22 +2,43 @@ services:
   api:
     build:
       context: .
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+      ALLOWED_HOSTS: 'tonotri.com,www.tonotri.com' 
     container_name: tonotri-backend-app
     ports:
       - '8000:8000'
+    networks:
+      - tonotri-network
 
   celery:
     build:
       context: .
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
     container_name: tonotri-celery
     command: celery -A TonotriBackend worker -l info -P solo
     depends_on:
       - redis
+    networks:
+      - tonotri-network
 
   redis:
     image: redis
     container_name: tonotri-redis
     ports:
       - '6379:6379'
+    networks:
+      - tonotri-network
 
-  
+volumes:
+  redis-data:
+
+networks:
+  tonotri-network:
+    external: true
+    name: tonotri-network
