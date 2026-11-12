@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 
 # Load the .env file
 load_dotenv()
@@ -86,7 +87,8 @@ INSTALLED_APPS = [
     'users',
     'accounts',
     'media',
-    'explore'
+    'explore',
+    'core.idempotency',
 ]
 
 # Essential for the sites framework to function
@@ -207,6 +209,8 @@ DATABASES = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key')
+CORS_EXPOSE_HEADERS = ['Idempotency-Replayed']
 
 CORS_ALLOWED_ORIGINS = [
     value.strip()
