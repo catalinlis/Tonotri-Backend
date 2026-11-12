@@ -27,6 +27,20 @@ services:
     networks:
       - tonotri-network
 
+  celery-beat:
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+    container_name: tonotri-celery-beat
+    command: celery -A TonotriBackend beat -l info --schedule=/tmp/celerybeat-schedule
+    depends_on:
+      - redis
+    networks:
+      - tonotri-network
+
   redis:
     image: redis
     container_name: tonotri-redis

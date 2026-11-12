@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     'media',
     'explore',
     'core.idempotency',
+    'core.outbox',
 ]
 
 # Essential for the sites framework to function
@@ -244,6 +245,14 @@ CELERY_REDIS_DB = int(os.getenv('CELERY_REDIS_DB'))
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{CELERY_REDIS_DB}'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_BEAT_SCHEDULE = {
+    'publish-outbox-events': {
+        'task': 'core.outbox.publish_pending',
+        'schedule': 10.0,
+        'kwargs': {'batch_size': 100, 'max_attempts': 10},
+        'options': {'expires': 10},
+    },
+}
 
 REDIS_CONFIG = {
     'HOST': REDIS_HOST,
