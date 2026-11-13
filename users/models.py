@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinLengthValidator
-from datetime import date
 from media.models import Image
 from explore.models import Country
 import uuid
@@ -25,7 +24,7 @@ class User(AbstractUser):
     email = models.EmailField(null=False, unique=True)
     first_name = models.CharField(max_length=20, null=True)
     last_name = models.CharField(max_length=20, null=True)
-    birthday = models.DateField(default=date(1970,1,1))
+    birthday = models.DateField(null=True, blank=True, default=None)
     gender = models.CharField(choices=Gender.choices,null=True)
     guid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
     is_active = models.BooleanField(default=True)

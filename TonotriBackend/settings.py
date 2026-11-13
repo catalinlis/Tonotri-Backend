@@ -141,6 +141,8 @@ REST_FRAMEWORK = {
 }
 
 AUTH_KIT = {
+    'SOCIAL_LOGIN_SERIALIZER_FACTORY': 'accounts.serializers.get_custom_social_login_serializer',
+    'LOGIN_REQUEST_SERIALIZER': 'accounts.serializers.LoginRequestSerializer',
     # Authentication type (replaces USE_JWT)
     'AUTH_TYPE': 'jwt',             # 'jwt', 'token', or 'custom'
     'USE_AUTH_COOKIE': True,

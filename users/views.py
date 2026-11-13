@@ -3,7 +3,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from accounts.permissions import IsActiveUser
 from .serializers import (
     ProfilePhotoUploadSerializer,
     UserPersonalInfoSerializer,
@@ -30,7 +30,7 @@ PROFILE_PHOTO_RESIZED_BUCKET_PATH = 'images/profile-photo/resized'
 
 class UserViewSet(ModelViewSet):
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsActiveUser]
 
     def get_queryset(self):
         """Never expose another user's account through generic CRUD routes."""
