@@ -17,3 +17,5 @@ staticfiles/
 # IDE
 .vscode/
 .idea/
+
+celerybeat*

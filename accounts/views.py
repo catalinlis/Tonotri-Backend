@@ -19,6 +19,7 @@ from .tasks import send_email_task
 from users.models import User
 from accounts.utils.redis_utils import VerificationEmail
 from django.contrib.auth import authenticate
+from core.idempotency.decorators import idempotent
 import secrets
 
 VerificationEmail = VerificationEmail()
@@ -240,6 +241,7 @@ class RegisterStep(APIView):
 class NextStep(APIView):
   permission_classes = [IsActiveUser]
 
+  @idempotent(scope='registration_next')
   def post(self, request):
     user = request.user
 

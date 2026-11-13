@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 
 # Load the .env file
 load_dotenv()
@@ -86,7 +87,9 @@ INSTALLED_APPS = [
     'users',
     'accounts',
     'media',
-    'explore'
+    'explore',
+    'core.idempotency',
+    'core.outbox',
 ]
 
 # Essential for the sites framework to function
@@ -207,6 +210,8 @@ DATABASES = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key')
+CORS_EXPOSE_HEADERS = ['Idempotency-Replayed']
 
 CORS_ALLOWED_ORIGINS = [
     value.strip()
@@ -240,6 +245,14 @@ CELERY_REDIS_DB = int(os.getenv('CELERY_REDIS_DB'))
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{CELERY_REDIS_DB}'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_BEAT_SCHEDULE = {
+    'publish-outbox-events': {
+        'task': 'core.outbox.publish_pending',
+        'schedule': 10.0,
+        'kwargs': {'batch_size': 100, 'max_attempts': 10},
+        'options': {'expires': 10},
+    },
+}
 
 REDIS_CONFIG = {
     'HOST': REDIS_HOST,

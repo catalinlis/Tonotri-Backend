@@ -18,11 +18,13 @@ class S3Service:
             region_name=settings.AWS_REGION,
         )
         
-    def upload_file(self, file, user_id, prefix):
-        extension = file.name.split('.')[-1]
-        filename = f'{user_id}_{uuid.uuid4()}.{extension}'
-        key = f'{prefix}{filename}'
+    def upload_file(self, file, user_id, prefix, *, key=None):
+        if key is None:
+            extension = file.name.split('.')[-1]
+            filename = f'{user_id}_{uuid.uuid4()}.{extension}'
+            key = f'{prefix}{filename}'
 
+        file.seek(0)
         self.s3.upload_fileobj(file, self.bucket_name, key)
 
         return key
