@@ -1,6 +1,6 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from accounts.permissions import IsActiveUser
 from rest_framework import status
 from .services import S3Service, CloudFrontService
 from .models import Image
@@ -11,7 +11,7 @@ IMAGE_RAW_BUCKET_PATH = 'images/raw/'
 
 class ImageViewSet(ModelViewSet):
     queryset = Image.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsActiveUser]
     serializer_class = ImageSerializer
 
     def get_serializer_class(self):

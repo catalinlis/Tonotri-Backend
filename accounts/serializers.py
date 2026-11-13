@@ -1,14 +1,76 @@
 from rest_framework import serializers
 from auth_kit.serializers import RegisterSerializer
+from auth_kit.serializers.login_factors import LoginRequestSerializer as AuthKitLoginRequestSerializer
+from rest_framework.exceptions import PermissionDenied
+from allauth.account.adapter import get_adapter
+from auth_kit.social.serializers.login import get_social_login_serializer
 from django.core.validators import RegexValidator
 from django.contrib.auth import get_user_model
 from datetime import date
 
 User = get_user_model()
 
-class LoginRequestSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=20, trim_whitespace=True)
+
+def get_custom_social_login_serializer(provider_name=''):
+    base_serializer = get_social_login_serializer(provider_name)
+
+    class SocialLoginSerializer(base_serializer):
+        def handle_social_login(self, request, login):
+            # Capture provider-verified addresses before account linking changes
+            # login.user or synchronizes local email records.
+            verified_emails = {
+                address.email.casefold()
+                for address in login.email_addresses
+                if address.verified and address.email
+            }
+            trusted_provider = login.account.provider == 'google'
+            super().handle_social_login(request, login)
+
+            user = login.user
+            if (
+                trusted_provider
+                and not user.confirmed_email
+                and user.email.casefold() in verified_emails
+            ):
+                user.confirmed_email = True
+                user.save(update_fields=['confirmed_email'])
+
+        def set_login_user(self, login):
+            # Auth Kit defaults to the full email, which can exceed username's
+            # max_length. Allauth generates a bounded, unique username instead.
+            if not login.user.pk:
+                if login.account and login.account.provider == 'google':
+                    for field in ('first_name', 'last_name'):
+                        value = getattr(login.user, field)
+                        if value:
+                            max_length = User._meta.get_field(field).max_length
+                            setattr(login.user, field, value.title()[:max_length])
+                login.user.username = get_adapter(self.context.get('request')).generate_unique_username([
+                    login.user.username,
+                    login.user.email,
+                    'user',
+                ])
+
+    return SocialLoginSerializer
+
+
+class LoginRequestSerializer(AuthKitLoginRequestSerializer):
+    username = serializers.CharField(max_length=20, trim_whitespace=True, write_only=True)
     password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def get_auth_user(self, username, email, password):
+        user = super().get_auth_user(username, email, password)
+        if user is None:
+            raise PermissionDenied({'error': 'Wrong password or account.'})
+        return user
+
+    def validate_email_verification_status(self, user):
+        super().validate_email_verification_status(user)
+        if user.regular_user and not user.confirmed_email:
+            raise PermissionDenied({
+                'error': 'Email is not confirmed.',
+                'guid': str(user.guid),
+            })
 
 class GuidRequestSerializer(serializers.Serializer):
     guid = serializers.UUIDField()
