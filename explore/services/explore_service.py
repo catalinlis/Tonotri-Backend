@@ -1,4 +1,5 @@
 from .base_service import BaseDescriptionAI
+from .exceptions import AIDescriptionUnavailable
 from .schemas import CountrySchema, BigCitySchema, CitySchema, LandmarkSchema
 
 class CountryDescriptionService(BaseDescriptionAI):
@@ -16,6 +17,8 @@ class CountryDescriptionService(BaseDescriptionAI):
                 user=user,
             )
 
+        except AIDescriptionUnavailable:
+            raise
         except Exception as e:
             print(e)
             return {
@@ -61,6 +64,8 @@ class CityDescriptionService(BaseDescriptionAI):
                 user=user,
             )
         
+        except AIDescriptionUnavailable:
+            raise
         except Exception as e:
             print(e)
             return {
@@ -198,6 +203,8 @@ class LandmarkVariationsService(BaseDescriptionAI):
                 user=user,
             )
 
+        except AIDescriptionUnavailable:
+            raise
         except Exception as e:
             print(e)
             return {
@@ -253,6 +260,8 @@ class LandmarkDescriptionService(BaseDescriptionAI):
                 user=user,
             )
 
+        except AIDescriptionUnavailable:
+            raise
         except Exception as e:
             print(e)
             return {

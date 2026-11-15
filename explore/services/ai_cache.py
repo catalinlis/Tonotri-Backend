@@ -1,18 +1,21 @@
 import hashlib
 import json
 import logging
+from contextlib import contextmanager
 from decimal import Decimal
+from threading import Event, Thread
 
 import redis
 from django.conf import settings
 
 from explore.models import AIUsageEvent
+from .exceptions import AIDescriptionUnavailable
 
 logger = logging.getLogger(__name__)
 
 
 class AIDescriptionCache:
-    """Cache AI descriptions in Redis without making Redis mandatory."""
+    """Cache descriptions and coordinate generation through shared Redis."""
 
     PREFIX = 'ai_description:v1'
 
@@ -22,6 +25,8 @@ class AIDescriptionCache:
             port=settings.REDIS_CONFIG['PORT'],
             db=settings.REDIS_CONFIG['DB'],
             decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
         )
 
     @staticmethod
@@ -37,13 +42,12 @@ class AIDescriptionCache:
         return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
     def get(self, request_hash):
-        """Return cached content, or a cache miss when Redis is unavailable."""
+        """Distinguish an ordinary cache miss from unavailable coordination."""
 
         try:
             cached = self.client.get(f'{self.PREFIX}:{request_hash}')
         except redis.RedisError as exc:
-            logger.warning('AI cache is unavailable; continuing without it: %s', exc)
-            return None
+            raise AIDescriptionUnavailable() from exc
         return json.loads(cached) if cached is not None else None
 
     def set(self, request_hash, value):
@@ -56,7 +60,74 @@ class AIDescriptionCache:
                 json.dumps(value, separators=(',', ':')),
             )
         except redis.RedisError as exc:
-            logger.warning('AI cache is unavailable; result was not cached: %s', exc)
+            raise AIDescriptionUnavailable() from exc
+
+    @contextmanager
+    def generation_lock(self, request_hash):
+        """Try once, without waiting, to lock generation for this request hash.
+
+        Yield None if another worker holds the Redis lock. The caller must
+        check for None before generating; the with block still runs.
+
+        If acquired, renew the lock's TTL in a background thread and yield
+        an ensure_owned callback. Calling it checks that this worker's token
+        still owns the Redis lock, raising AIDescriptionUnavailable if renewal
+        failed or ownership cannot be confirmed. It checks lock ownership,
+        not thread ownership, and does not make subsequent writes atomic.
+
+        On exit, including exceptions, stop renewal, wait for the thread, and
+        attempt to release the lock. Release errors are logged; any remaining
+        lease expires. Redis errors during acquisition raise
+        AIDescriptionUnavailable.
+        """
+        lease = settings.AI_DESCRIPTION_LOCK_TTL
+        lock = self.client.lock(
+            f'{self.PREFIX}:lock:{request_hash}',
+            timeout=lease,
+            thread_local=False,
+        )
+        try:
+            acquired = lock.acquire(blocking=False)
+        except redis.RedisError as exc:
+            raise AIDescriptionUnavailable() from exc
+        if not acquired:
+            yield None
+            return
+
+        stopped = Event()
+        lost = Event()
+
+        def renew():
+            while not stopped.wait(lease / 3):
+                try:
+                    if not lock.extend(lease, replace_ttl=True):
+                        lost.set()
+                        return
+                except redis.RedisError:
+                    lost.set()
+                    return
+
+        def ensure_owned():
+            try:
+                if lost.is_set() or not lock.owned():
+                    raise AIDescriptionUnavailable()
+            except redis.RedisError as exc:
+                raise AIDescriptionUnavailable() from exc
+
+        worker = Thread(target=renew, name='ai-description-lock', daemon=True)
+        try:
+            worker.start()
+            yield ensure_owned
+        finally:
+            stopped.set()
+            if worker.ident is not None:
+                worker.join()
+            try:
+                lock.release()
+            except redis.RedisError:
+                # Token-checked release cannot remove another worker's lease.
+                # A completed result should still be returned if release fails.
+                logger.warning('Could not release AI description lock, lease will expire.')
 
 
 class AIUsageTracker:
