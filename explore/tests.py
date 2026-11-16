@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from unittest.mock import Mock
@@ -10,6 +11,7 @@ from .clients.openai_client import GeneratedJSON
 from .models import AIUsageEvent
 from .serializers import LandmarkDescriptionQuerySerializer
 from .services.ai_cache import AIDescriptionCache, AIUsageTracker
+from .services.exceptions import AIDescriptionUnavailable
 from .services.explore_service import CountryDescriptionService
 from .services.photo_cache import UnsplashPhotoCache
 from .services.photo_service import LocationPhotoService
@@ -41,6 +43,11 @@ class MemoryCache:
 
     def set(self, request_hash, value):
         self.values[request_hash] = value
+
+    @contextmanager
+    def generation_lock(self, request_hash):
+        # These sequential cache/accounting tests do not simulate contention.
+        yield lambda: None
 
 
 class FakeOpenAIClient:
@@ -109,25 +116,29 @@ class LocationPhotoCachingTests(SimpleTestCase):
 
 @override_settings(
     AI_DESCRIPTION_CACHE_TTL=86400,
+    AI_DESCRIPTION_PROMPT_VERSION=1,
+    AI_DESCRIPTION_LOCK_WAIT=5,
     UNSPLASH_PHOTO_CACHE_TTL=86400,
 )
 class RedisCacheFailureTests(SimpleTestCase):
-    def test_ai_cache_treats_redis_failure_as_a_cache_miss(self):
+    def test_ai_cache_raises_when_redis_read_fails(self):
         client = Mock()
         client.get.side_effect = redis.ConnectionError('Redis is unavailable')
         cache = AIDescriptionCache(client=client)
 
-        self.assertIsNone(cache.get('request-hash'))
+        with self.assertRaises(AIDescriptionUnavailable):
+            cache.get('request-hash')
 
-    def test_ai_cache_ignores_redis_failure_when_saving(self):
+    def test_ai_cache_raises_when_redis_write_fails(self):
         client = Mock()
         client.setex.side_effect = redis.ConnectionError('Redis is unavailable')
         cache = AIDescriptionCache(client=client)
 
-        cache.set('request-hash', {'country': 'Romania'})
+        with self.assertRaises(AIDescriptionUnavailable):
+            cache.set('request-hash', {'country': 'Romania'})
 
     @override_settings(OPENAI_DESCRIPTION_MODEL='gpt-5-mini')
-    def test_ai_service_continues_when_redis_is_unavailable(self):
+    def test_ai_service_does_not_generate_when_redis_is_unavailable(self):
         redis_client = Mock()
         redis_client.get.side_effect = redis.ConnectionError('Redis is unavailable')
         redis_client.setex.side_effect = redis.ConnectionError('Redis is unavailable')
@@ -137,12 +148,10 @@ class RedisCacheFailureTests(SimpleTestCase):
             cache=AIDescriptionCache(client=redis_client),
         )
 
-        result = service.generate('Romania')
+        with self.assertRaises(AIDescriptionUnavailable):
+            service.generate('Romania')
 
-        self.assertTrue(result['success'])
-        self.assertFalse(result['cached'])
-        self.assertEqual(result['message'], {'country': 'Romania'})
-        self.assertEqual(ai_client.calls, 1)
+        self.assertEqual(ai_client.calls, 0)
 
     def test_photo_cache_treats_redis_failure_as_a_cache_miss(self):
         client = Mock()
@@ -164,6 +173,8 @@ class RedisCacheFailureTests(SimpleTestCase):
     OPENAI_INPUT_PRICE_PER_MILLION='0.25',
     OPENAI_CACHED_INPUT_PRICE_PER_MILLION='0.025',
     OPENAI_OUTPUT_PRICE_PER_MILLION='2.00',
+    AI_DESCRIPTION_PROMPT_VERSION=1,
+    AI_DESCRIPTION_LOCK_WAIT=5,
 )
 class AIDescriptionCachingTests(TestCase):
     def setUp(self):
